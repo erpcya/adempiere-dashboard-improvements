@@ -13,8 +13,8 @@ A improvement for dashboard using ADempiere new UI.
 ![Access](docs/Window_Chart_Access.gif)
 
 ## Requirements
-- [JDK 11 or later](https://adoptium.net/)
-- [Gradle 8.0.1 or later](https://gradle.org/install/)
+- [JDK 17 or later](https://adoptium.net/)
+- Gradle: none to install, the wrapper in this tree brings its own
 
 
 ### Packages Names

@@ -1,10 +1,10 @@
 plugins {
 	id 'java-library'
 	id 'maven-publish'
-	id 'signing'
 }
 
-sourceCompatibility = 1.11
+sourceCompatibility = 1.17
+targetCompatibility = 1.17
 def baseVersion = '3.9.4'
 def baseGroupId = 'io.github.adempiere'
 
@@ -44,9 +44,22 @@ java {
 }
 
 
+//  Signing is a Maven Central requirement. GitHub Packages does not verify
+//  signatures, and a build that stops for a missing key nobody set is a build
+//  that fails for a rule that does not apply here.
+//  signing {
+//      sign configurations.archives
+//  }
+
 def entityType = 'D'
-group = "io.github.adempiere"
 version = System.getenv("ADEMPIERE_LIBRARY_VERSION") ?: "local-1.0.0"
+//  The coordinate this publishes under, stated here rather than only in an
+//  organization secret that no reader of this file can see. The variable still
+//  overrides it, which is how a fork changes its own group without changing
+//  everybody's — but a checkout with nothing configured publishes under the same
+//  coordinate as the rest of these libraries instead of under whatever the
+//  organization happens to hold.
+def customGroupId = System.getenv("ADEMPIERE_LIBRARY_GROUP") ?: "io.github.adempiere"
 
 jar {
 	manifest {
@@ -60,19 +73,22 @@ jar {
 
 publishing {
     repositories {
-		mavenLocal()
-
         maven {
-            url = "https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/"
+            //  This fork's own packages. Central carries upstream's artifact under
+            //  the same coordinate, and what this repository builds is not that.
+            //  The property still overrides it, for a repository that genuinely
+            //  publishes elsewhere.
+            url = findProperty("deployPublishUrl")
+                    ?: "https://maven.pkg.github.com/erpcya/adempiere-dashboard-improvements"
             credentials {
-                username = findProperty("sonatypeUsername")
-                password = findProperty("sonatypePassword")
+                username = System.getenv("GITHUB_DEPLOY_USER") ?: findProperty("sonatypeUsername")
+                password = System.getenv("GITHUB_DEPLOY_TOKEN") ?: findProperty("sonatypePassword")
             }
         }
     }
     publications {
         mavenJava(MavenPublication) {
-			groupId = group
+			groupId = customGroupId
 			artifactId = 'adempiere-dashboard-improvements'
 			version = version
            	from components.java
@@ -94,9 +110,11 @@ publishing {
                     }
                 }
                 scm {
-                    connection = 'scm:git:git://github.com/adempiere/adempiere-dashboard-improvements.git'
-                    developerConnection = 'scm:git:ssh://github.com/adempiere/adempiere-dashboard-improvements.git'
-                    url = 'http://github.com/adempiere/adempiere-dashboard-improvements'
+                    //  The fork, not upstream. Whoever follows this from a
+                    //  published artifact wants the source that produced it.
+                    connection = 'scm:git:git://github.com/erpcya/adempiere-dashboard-improvements.git'
+                    developerConnection = 'scm:git:ssh://github.com/erpcya/adempiere-dashboard-improvements.git'
+                    url = 'http://github.com/erpcya/adempiere-dashboard-improvements'
                 }
             }
 		}
@@ -106,23 +124,4 @@ publishing {
 
 task cleanBuildPublishLocal(type: GradleBuild) {
 	tasks = ['clean', 'build', 'publishToMavenLocal']
-}
-
-
-signing {
-	def isReleaseVersion = !version.toString().startsWith("local") && !version.toString().endsWith("-SNAPSHOT")
-
-	sign configurations.archives
-
-	setRequired {
-		// signing is required if this is a release version and the artifacts are to be published
-		// do not use hasTask() as this require realization of the tasks that maybe are not necessary
-		isReleaseVersion && gradle.taskGraph.allTasks.any {
-			it.equals(PublishToMavenRepository)
-		}
-	}
-	def signingKey = findProperty("signingKey")
-    def signingPassword = findProperty("signingPassword")
-    useInMemoryPgpKeys(signingKey, signingPassword)
-    sign publishing.publications.mavenJava
 }
