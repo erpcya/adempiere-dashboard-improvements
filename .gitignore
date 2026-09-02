@@ -25,3 +25,9 @@ hs_err_pid*
 /bin/
 /build/
 /.gradle/
+
+#  The wrapper is the build, not build output. The blanket *.jar and *.properties
+#  rules above swallow it, and a checkout without it fails on ./gradlew with a
+#  missing class rather than with anything that names the cause.
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
